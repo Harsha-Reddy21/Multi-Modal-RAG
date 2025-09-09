@@ -4,6 +4,7 @@ from langchain_community.document_loaders import PyMuPDFLoader, Docx2txtLoader,C
 from langchain_unstructured import UnstructuredLoader
 import base64
 import os
+from langchain_cohere import CohereRerank
 from langchain.chat_models import init_chat_model
 from dotenv import load_dotenv
 from langchain.vectorstores import Chroma
@@ -126,7 +127,13 @@ def ingest_csv(file: str):
 
 
 
-def set_chroma_db(user_query: str):
-    response = chroma_db.similarity_search(user_query)
-    return response
+def get_response(user_query: str):
 
+    cohere_rank = CohereRerank(model="rerank-english-v3.0")
+    response = chroma_db.similarity_search(user_query)
+    response = cohere_rank.invoke(response)
+    prompt = PromptTemplate(template="""You are a helpful assistant that can answer questions about the following text: {text}
+    Question: {question}
+    Answer: """, input_variables=["text", "question"])
+    response = prompt.invoke({"text": response, "question": user_query})
+    return response
